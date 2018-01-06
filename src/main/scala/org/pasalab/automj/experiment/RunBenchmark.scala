@@ -7,14 +7,15 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.benchmark.Benchmark
 
+import scala.io.Source
 import scala.util.Try
 
 case class RunConfig(
                       benchmarkName: String = null,
                       filter: Option[String] = None,
-                      tablesFile: String = null,
-                      queriesFile: String = null,
-                      configFile: String = null,
+                      tablesFile: String = ExperimentConst.DEFAULT_TABLES_FILE,
+                      queriesFile: String = ExperimentConst.DEFAULT_QUERIES_FILE,
+                      configFile: String = ExperimentConst.DEFAULT_CONFIG_FILE,
                       iterations: Int = 3,
                       baseline: Option[Long] = None)
 
@@ -63,11 +64,23 @@ object RunBenchmark {
     val conf = new SparkConf()
       .setAppName(getClass.getName)
 
+    // 设置配置文件里的参数
+    Source.fromFile(config.configFile).getLines().map {
+      case line =>
+        val pair = line.split("\\s+")
+        assert(pair.length == 2, s"please use correct file format($line), <config name> <value>")
+        conf.set(pair(0), pair(1))
+    }
+
     val sc = SparkContext.getOrCreate(conf)
     val sqlContext = SQLContext.getOrCreate(sc)
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)
+    sqlContext.setConf(ExperimentConst.TABLES_FILE, config.tablesFile)
+    sqlContext.setConf(ExperimentConst.QUERIES_FILE, config.queriesFile)
+    sqlContext.setConf(ExperimentConst.CONFIG_FILE, config.configFile)
+
     val benchmark = Try {
       Class.forName(config.benchmarkName)
         .newInstance()
@@ -90,6 +103,7 @@ object RunBenchmark {
     val experiment = benchmark.runExperiment(
       executionsToRun = allQueries,
       iterations = config.iterations,
+      variations = Seq(benchmark.executionMode),
       tags = Map(
         "runtype" -> "cluster",
         "host" -> conf.getOption("spark.master").get))

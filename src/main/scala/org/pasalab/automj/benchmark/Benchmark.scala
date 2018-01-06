@@ -13,6 +13,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SQLContext}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.SparkContext
+import org.pasalab.automj.MjConfigConst
 import org.pasalab.automj.benchmark.cpu._
 
 /**
@@ -65,6 +66,12 @@ abstract class Benchmark(
   val tungsten = Variation("tungsten", Seq("on", "off")) {
     case "off" => sqlContext.setConf("spark.sql.tungsten.enabled", "false")
     case "on" => sqlContext.setConf("spark.sql.tungsten.enabled", "true")
+  }
+
+  val executionMode = Variation("Mj execution mode", Seq("default", "one-round", "mixed")) {
+    case "default" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
+    case "one-round" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
+    case "mixed" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
   }
 
   /**

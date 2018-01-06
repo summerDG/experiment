@@ -1,0 +1,6 @@
+spark.automj.multiRoundStrategy org.pasalab.automj.ShareStrategy
+spark.automj.oneRoundStrategy   org.pasalab.automj.LeftDepthStrategy
+spark.automj.joinSizeEstimator  org.pasalab.automj.EstimatorBasedSample
+spark.automj.useOneRound    true
+spark.automj.statistics.sample.fraction 1.0
+spark.automj.oneRound.partitions    8
