@@ -1,11 +1,9 @@
 package org.pasalab.automj.experiment
 
-import java.net.InetAddress
-
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.MjSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.{SparkConf, SparkContext}
-import org.pasalab.automj.benchmark.Benchmark
+import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst}
 
 import scala.io.Source
 import scala.util.Try
@@ -73,7 +71,8 @@ object RunBenchmark {
     }
 
     val sc = SparkContext.getOrCreate(conf)
-    val sqlContext = SQLContext.getOrCreate(sc)
+    val spark = new MjSession(sc)
+    val sqlContext = spark.sqlContext
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)

@@ -1,11 +1,7 @@
 package org.pasalab.automj.benchmark
 
-import java.io.File
-
 import org.apache.spark.sql.DataFrame
-import org.pasalab.automj.MjConfigConst
 import org.pasalab.automj.benchmark.ExecutionMode.ForeachResults
-import org.pasalab.automj.experiment.ExperimentConst
 
 import scala.io.Source
 
