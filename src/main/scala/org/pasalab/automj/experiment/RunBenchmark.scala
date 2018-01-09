@@ -3,6 +3,7 @@ package org.pasalab.automj.experiment
 import org.apache.spark.sql.MjSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.{SparkConf, SparkContext}
+import org.pasalab.automj.MjConfigConst
 import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst}
 
 import scala.io.Source
@@ -59,15 +60,20 @@ object RunBenchmark {
   }
 
   def run(config: RunConfig): Unit = {
-    val conf = new SparkConf()
-      .setAppName(getClass.getName)
-
-    // 设置配置文件里的参数
-    Source.fromFile(config.configFile).getLines().map {
-      case line =>
-        val pair = line.split("\\s+")
-        assert(pair.length == 2, s"please use correct file format($line), <config name> <value>")
-        conf.set(pair(0), pair(1))
+    val conf = {
+      val configuration = new SparkConf()
+        .setAppName(getClass.getName)
+      // 设置配置文件里的参数
+      Source.fromFile(config.configFile).getLines().foreach {
+        case line =>
+          val pair = line.split("\\s+")
+          assert(pair.length == 2, s"please use correct file format($line), <config name> <value>")
+          configuration.set(pair(0), pair(1))
+      }
+      configuration.set(ExperimentConst.TABLES_FILE, config.tablesFile)
+      configuration.set(ExperimentConst.QUERIES_FILE, config.queriesFile)
+      configuration.set(ExperimentConst.TABLES_FILE, config.tablesFile)
+      configuration
     }
 
     val sc = SparkContext.getOrCreate(conf)
@@ -76,16 +82,13 @@ object RunBenchmark {
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)
-    sqlContext.setConf(ExperimentConst.TABLES_FILE, config.tablesFile)
-    sqlContext.setConf(ExperimentConst.QUERIES_FILE, config.queriesFile)
-    sqlContext.setConf(ExperimentConst.CONFIG_FILE, config.configFile)
 
     val benchmark = Try {
       Class.forName(config.benchmarkName)
         .newInstance()
         .asInstanceOf[Benchmark]
     } getOrElse {
-      Class.forName("com.databricks.spark.sql.perf." + config.benchmarkName)
+      Class.forName("org.pasalab.automj.benchmark." + config.benchmarkName)
         .newInstance()
         .asInstanceOf[Benchmark]
     }
@@ -93,6 +96,7 @@ object RunBenchmark {
     val allQueries = config.filter.map { f =>
       benchmark.allQueries.filter(_.name contains f)
     } getOrElse {
+      assert(benchmark.allQueries.nonEmpty, s"no queries")
       benchmark.allQueries
     }
 

@@ -115,14 +115,14 @@ abstract class Benchmark(
   val myType = runtimeMirror.classSymbol(getClass).toType
 
   def singleTables =
-    myType.declarations
+    myType.decls
       .filter(m => m.isMethod)
       .map(_.asMethod)
       .filter(_.asMethod.returnType =:= typeOf[Table])
       .map(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Table])
 
   def groupedTables =
-    myType.declarations
+    myType.decls
       .filter(m => m.isMethod)
       .map(_.asMethod)
       .filter(_.asMethod.returnType =:= typeOf[Seq[Table]])
@@ -132,32 +132,33 @@ abstract class Benchmark(
   lazy val allTables: Seq[Table] = (singleTables ++ groupedTables).toSeq
 
   def singleQueries =
-    myType.declarations
+    myType.decls
       .filter(m => m.isMethod)
       .map(_.asMethod)
       .filter(_.asMethod.returnType =:= typeOf[Benchmarkable])
       .map(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Benchmarkable])
 
-  def groupedQueries =
-    myType.declarations
+  def groupedQueries = {
+    myType.decls
       .filter(m => m.isMethod)
       .map(_.asMethod)
-      .filter(_.asMethod.returnType =:= typeOf[Seq[Benchmarkable]])
-      .flatMap(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Seq[Benchmarkable]])
+      .filter(_.asMethod.returnType =:= typeOf[Seq[Query]])
+      .flatMap(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Seq[Query]])
+  }
 
   @transient
   lazy val allQueries = (singleQueries ++ groupedQueries).toSeq
 
   def html: String = {
     val singleQueries =
-      myType.declarations
+      myType.decls
         .filter(m => m.isMethod)
         .map(_.asMethod)
         .filter(_.asMethod.returnType =:= typeOf[Query])
         .map(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Query])
         .mkString(",")
     val queries =
-      myType.declarations
+      myType.decls
         .filter(m => m.isMethod)
         .map(_.asMethod)
         .filter(_.asMethod.returnType =:= typeOf[Seq[Query]])

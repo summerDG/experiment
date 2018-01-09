@@ -1,5 +1,7 @@
 package org.pasalab.automj.benchmark
 
+import java.io.File
+
 import org.apache.spark.sql.DataFrame
 import org.pasalab.automj.benchmark.ExecutionMode.ForeachResults
 
@@ -10,8 +12,9 @@ import scala.io.Source
  */
 class AutoMjPerformance extends Benchmark {
 
-  val joinTables: Seq[Table] = {
+  def joinTables: Seq[Table] = {
     val tablesFile = currentConfiguration.sparkConf.get(ExperimentConst.TABLES_FILE).getOrElse("")
+    assert(new File(tablesFile).exists(), s"file <${tablesFile}> not exist")
     val names: Seq[(String, String)] = Source.fromFile(tablesFile).getLines().map {
       case line =>
         val pair = line.split("\\s+")
@@ -31,8 +34,9 @@ class AutoMjPerformance extends Benchmark {
     }
   }
 
-  val queries: Seq[Query] = {
+  def queries: Seq[Query] = {
     val queriesFile = currentConfiguration.sparkConf.get(ExperimentConst.QUERIES_FILE).getOrElse("")
+    assert(new File(queriesFile).exists(), s"file <${queriesFile}> not exist")
     val sqlText: Seq[(String, String)] = Source.fromFile(queriesFile).getLines().map {
       case line =>
         val i = line.indexOf("\t")

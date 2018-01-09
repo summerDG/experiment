@@ -5,7 +5,7 @@ package org.pasalab.automj.benchmark
  */
 import java.util.UUID
 
-import com.typesafe.scalalogging.slf4j.{LazyLogging => Logging}
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SQLContext
 
@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 
 
 /** A trait to describe things that can be benchmarked. */
-trait Benchmarkable extends Logging {
+trait Benchmarkable extends LazyLogging {
   @transient protected[this] val sqlContext = SQLContext.getOrCreate(SparkContext.getOrCreate())
   @transient protected[this] val sparkContext = sqlContext.sparkContext
 
