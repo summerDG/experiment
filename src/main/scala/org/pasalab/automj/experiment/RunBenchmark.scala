@@ -82,6 +82,7 @@ object RunBenchmark {
     import sqlContext.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)
+    sqlContext.setConf("spark.sql.codegen.wholeStage", "false")
 
     val benchmark = Try {
       Class.forName(config.benchmarkName)
