@@ -12,7 +12,7 @@ import scala.io.Source
  */
 class AutoMjPerformance extends Benchmark {
 
-  def joinTables: Seq[Table] = {
+  val joinTables: Seq[Table] = {
     val tablesFile = currentConfiguration.sparkConf.get(ExperimentConst.TABLES_FILE).getOrElse("")
     assert(new File(tablesFile).exists(), s"file <${tablesFile}> not exist")
     val names: Seq[(String, String)] = Source.fromFile(tablesFile).getLines().map {
@@ -34,7 +34,7 @@ class AutoMjPerformance extends Benchmark {
     }
   }
 
-  def queries: Seq[Query] = {
+  val queries: Seq[Benchmarkable] = {
     val queriesFile = currentConfiguration.sparkConf.get(ExperimentConst.QUERIES_FILE).getOrElse("")
     assert(new File(queriesFile).exists(), s"file <${queriesFile}> not exist")
     val sqlText: Seq[(String, String)] = Source.fromFile(queriesFile).getLines().map {

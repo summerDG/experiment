@@ -138,13 +138,12 @@ abstract class Benchmark(
       .filter(_.asMethod.returnType =:= typeOf[Benchmarkable])
       .map(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Benchmarkable])
 
-  def groupedQueries = {
+  def groupedQueries =
     myType.decls
       .filter(m => m.isMethod)
       .map(_.asMethod)
-      .filter(_.asMethod.returnType =:= typeOf[Seq[Query]])
-      .flatMap(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Seq[Query]])
-  }
+      .filter(_.asMethod.returnType =:= typeOf[Seq[Benchmarkable]])
+      .flatMap(method => runtimeMirror.reflect(this).reflectMethod(method).apply().asInstanceOf[Seq[Benchmarkable]])
 
   @transient
   lazy val allQueries = (singleQueries ++ groupedQueries).toSeq

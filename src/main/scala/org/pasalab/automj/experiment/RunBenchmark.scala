@@ -1,6 +1,6 @@
 package org.pasalab.automj.experiment
 
-import org.apache.spark.sql.MjSession
+import org.apache.spark.sql.{DataFrame, MjSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.MjConfigConst
@@ -93,6 +93,7 @@ object RunBenchmark {
         .asInstanceOf[Benchmark]
     }
 
+    benchmark.allTables
     val allQueries = config.filter.map { f =>
       benchmark.allQueries.filter(_.name contains f)
     } getOrElse {
@@ -113,19 +114,34 @@ object RunBenchmark {
 
     println("== STARTING EXPERIMENT ==")
     experiment.waitForFinish(1000 * 60 * 30)
+    def showResult(df: DataFrame): Unit ={
+      df.withColumn("result", explode($"results"))
+        .select("result.*")
+        .groupBy("name")
+        .agg(
+          min($"executionTime") as 'minExeTimeMs,
+          max($"executionTime") as 'maxExeTimeMs,
+          avg($"executionTime") as 'avgExeTimeMs,
+          stddev($"executionTime") as 'exeStdDev,
+          min($"optimizationTime") as 'minOptTimeMs,
+          max($"optimizationTime") as 'maxOptTimeMs,
+          avg($"optimizationTime") as 'avgOptTimeMs,
+          stddev($"optimizationTime") as 'optStdDev)
+        .orderBy("name")
+        .show(truncate = false)
+    }
 
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
-    experiment.getCurrentRuns()
-      .withColumn("result", explode($"results"))
-      .select("result.*")
-      .groupBy("name")
-      .agg(
-        min($"executionTime") as 'minTimeMs,
-        max($"executionTime") as 'maxTimeMs,
-        avg($"executionTime") as 'avgTimeMs,
-        stddev($"executionTime") as 'stdDev)
-      .orderBy("name")
-      .show(truncate = false)
+    println("== Spark Default Strategy ==")
+    showResult(experiment.getCurrentRuns()
+      .where($"tags".getItem("Mj execution mode") === "default"))
+    println("== One Round Strategy ==")
+    showResult(experiment.getCurrentRuns()
+      .where($"tags".getItem("Mj execution mode") === "one-round"))
+    println("== Mixed(one-round & multi-round) Strategy ==")
+    showResult(experiment.getCurrentRuns()
+      .where($"tags".getItem("Mj execution mode") === "mixed"))
+
     println(s"""Results: sqlContext.read.json("${experiment.resultPath}")""")
 
     config.baseline.foreach { baseTimestamp =>
@@ -149,4 +165,5 @@ object RunBenchmark {
       data.show(truncate = false)
     }
   }
+
 }
