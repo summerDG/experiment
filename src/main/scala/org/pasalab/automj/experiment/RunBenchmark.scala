@@ -1,7 +1,8 @@
 package org.pasalab.automj.experiment
 
-import org.apache.spark.sql.{DataFrame, MjSession}
+import org.apache.spark.sql.{DataFrame, MjSession, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.MjConfigConst
 import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst}
@@ -77,21 +78,20 @@ object RunBenchmark {
     }
 
     val sc = SparkContext.getOrCreate(conf)
-    val spark = new MjSession(sc)
+    val spark: SparkSession = new MjSession(sc)
     val sqlContext = spark.sqlContext
-    import sqlContext.implicits._
+    import spark.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)
     sqlContext.setConf("spark.sql.codegen.wholeStage", "false")
+    sqlContext.setConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
 
     val benchmark = Try {
       Class.forName(config.benchmarkName)
-        .newInstance()
-        .asInstanceOf[Benchmark]
+        .getConstructors.head.newInstance(spark).asInstanceOf[Benchmark]
     } getOrElse {
       Class.forName("org.pasalab.automj.benchmark." + config.benchmarkName)
-        .newInstance()
-        .asInstanceOf[Benchmark]
+        .getConstructors.head.newInstance(spark).asInstanceOf[Benchmark]
     }
 
     benchmark.allTables
@@ -149,7 +149,7 @@ object RunBenchmark {
       val baselineTime = when($"timestamp" === baseTimestamp, $"executionTime").otherwise(null)
       val thisRunTime = when($"timestamp" === experiment.timestamp, $"executionTime").otherwise(null)
 
-      val data = sqlContext.read.json(benchmark.resultsLocation)
+      val data = spark.read.json(benchmark.resultsLocation)
         .coalesce(1)
         .where(s"timestamp IN ($baseTimestamp, ${experiment.timestamp})")
         .withColumn("result", explode($"results"))

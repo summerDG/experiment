@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import scala.language.implicitConversions
 import scala.util.{Success, Try, Failure => SFailure}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SQLContext}
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.SparkContext
 import org.pasalab.automj.MjConfigConst
@@ -19,22 +19,22 @@ import org.pasalab.automj.benchmark.cpu._
 /**
  * A collection of queries that test a particular aspect of Spark SQL.
  *
- * @param sqlContext An existing SQLContext.
+ * @param sparkSession An existing SQLContext.
  */
 abstract class Benchmark(
-                          @transient val sqlContext: SQLContext)
+                          @transient val sparkSession: SparkSession)
   extends Serializable {
 
   import Benchmark._
 
-  def this() = this(SQLContext.getOrCreate(SparkContext.getOrCreate()))
+//  def this() = this(new MjSession(SparkContext.getOrCreate()))
 
   val resultsLocation =
-    sqlContext.getAllConfs.getOrElse(
+    sparkSession.sqlContext.getAllConfs.getOrElse(
       "spark.sql.perf.results",
       "/spark/sql/performance")
 
-  protected def sparkContext = sqlContext.sparkContext
+  protected def sparkContext = sparkSession.sparkContext
 
   protected implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -47,31 +47,16 @@ abstract class Benchmark(
   }.getOrElse(Map.empty)
 
   def currentConfiguration = BenchmarkConfiguration(
-    sqlConf = sqlContext.getAllConfs,
+    sqlConf = sparkSession.sqlContext.getAllConfs,
     sparkConf = sparkContext.getConf.getAll.toMap,
     defaultParallelism = sparkContext.defaultParallelism,
     buildInfo = buildInfo)
 
 
-  val codegen = Variation("codegen", Seq("on", "off")) {
-    case "off" => sqlContext.setConf("spark.sql.codegen", "false")
-    case "on" => sqlContext.setConf("spark.sql.codegen", "true")
-  }
-
-  val unsafe = Variation("unsafe", Seq("on", "off")) {
-    case "off" => sqlContext.setConf("spark.sql.unsafe.enabled", "false")
-    case "on" => sqlContext.setConf("spark.sql.unsafe.enabled", "true")
-  }
-
-  val tungsten = Variation("tungsten", Seq("on", "off")) {
-    case "off" => sqlContext.setConf("spark.sql.tungsten.enabled", "false")
-    case "on" => sqlContext.setConf("spark.sql.tungsten.enabled", "true")
-  }
-
   val executionMode = Variation("Mj execution mode", Seq("default", "one-round", "mixed")) {
-    case "default" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
-    case "one-round" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
-    case "mixed" => sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
+    case "default" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
+    case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
+    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
   }
 
   /**
@@ -100,7 +85,7 @@ abstract class Benchmark(
                      forkThread: Boolean = true) = {
 
     new ExperimentStatus(executionsToRun, includeBreakdown, iterations, variations, tags,
-      timeout, resultLocation, sqlContext, allTables, currentConfiguration, forkThread = forkThread)
+      timeout, resultLocation, sparkSession, allTables, currentConfiguration, forkThread = forkThread)
   }
 
 
@@ -180,27 +165,28 @@ abstract class Benchmark(
 
   /** Factory object for benchmark queries. */
   case object Query {
-    def apply(
+    def apply(sparkSession: SparkSession,
                name: String,
                sqlText: String,
                description: String,
                executionMode: ExecutionMode = ExecutionMode.ForeachResults): Query = {
-      new Query(name, sqlContext.sql(sqlText), description, Some(sqlText), executionMode)
+      new Query(sparkSession, name, sparkSession.sql(sqlText), description, Some(sqlText), executionMode)
     }
 
-    def apply(
+    def apply(sparkSession: SparkSession,
                name: String,
                dataFrameBuilder: => DataFrame,
                description: String): Query = {
-      new Query(name, dataFrameBuilder, description, None, ExecutionMode.CollectResults)
+      new Query(sparkSession, name, dataFrameBuilder, description, None, ExecutionMode.CollectResults)
     }
   }
 
   object RDDCount {
-    def apply(
+    def apply( sparkSession: SparkSession,
                name: String,
                rdd: RDD[_]) = {
       new SparkPerfExecution(
+        sparkSession,
         name,
         Map.empty,
         () => Unit,
@@ -210,13 +196,13 @@ abstract class Benchmark(
   }
 
   /** A class for benchmarking Spark perf results. */
-  class SparkPerfExecution(
+  class SparkPerfExecution( override val sparkSession: SparkSession,
                             override val name: String,
                             parameters: Map[String, String],
                             prepare: () => Unit,
                             run: () => Unit,
                             description: String = "")
-    extends Benchmarkable {
+    extends Benchmarkable(sparkSession) {
 
     override def toString: String =
       s"""
@@ -286,7 +272,7 @@ object Benchmark {
                           tags: Map[String, String],
                           timeout: Long,
                           resultsLocation: String,
-                          sqlContext: SQLContext,
+                          sparkSession: SparkSession,
                           allTables: Seq[Table],
                           currentConfiguration: BenchmarkConfiguration,
                           forkThread: Boolean = true) {
@@ -336,7 +322,7 @@ object Benchmark {
         .distinct
         .foreach { name =>
           try {
-            sqlContext.table(name)
+            sparkSession.table(name)
             logMessage(s"Table $name exists.")
           } catch {
             case ae: Exception =>
@@ -419,7 +405,7 @@ object Benchmark {
       }
 
       try {
-        val resultsTable = sqlContext.createDataFrame(results)
+        val resultsTable = sparkSession.createDataFrame(results)
         logMessage(s"Results written to table: 'sqlPerformance' at $resultPath")
         resultsTable
           .coalesce(1)
@@ -437,7 +423,7 @@ object Benchmark {
       logCollection = () => {
         logMessage(s"Begining CPU log collection")
         try {
-          val location = cpu.collectLogs(sqlContext, fs, timestamp)
+          val location = cpu.collectLogs(sparkSession, fs, timestamp)
           logMessage(s"cpu results recorded to $location")
         } catch {
           case e: Throwable =>
@@ -447,12 +433,12 @@ object Benchmark {
       }
     }
 
-    def cpuProfile = new Profile(sqlContext, sqlContext.read.json(getCpuLocation(timestamp)))
+    def cpuProfile = new Profile(sparkSession, sparkSession.read.json(getCpuLocation(timestamp)))
 
     def cpuProfileHtml(fs: FS) = {
       s"""
          |<h1>CPU Profile</h1>
-         |<b>Permalink:</b> <tt>sqlContext.read.json("${getCpuLocation(timestamp)}")</tt></br>
+         |<b>Permalink:</b> <tt>sparkSession.read.json("${getCpuLocation(timestamp)}")</tt></br>
          |${cpuProfile.buildGraph(fs)}
          """.stripMargin
     }
@@ -464,15 +450,15 @@ object Benchmark {
 
     /** Returns results from an actively running experiment. */
     def getCurrentResults() = {
-      val tbl = sqlContext.createDataFrame(currentResults)
-      tbl.registerTempTable("currentResults")
+      val tbl = sparkSession.createDataFrame(currentResults)
+      tbl.createOrReplaceTempView("currentResults")
       tbl
     }
 
     /** Returns full iterations from an actively running experiment. */
     def getCurrentRuns() = {
-      val tbl = sqlContext.createDataFrame(currentRuns)
-      tbl.registerTempTable("currentRuns")
+      val tbl = sparkSession.createDataFrame(currentRuns)
+      tbl.createOrReplaceGlobalTempView("currentRuns")
       tbl
     }
 
@@ -505,7 +491,7 @@ object Benchmark {
         }
       s"""
          |<h2>$status Experiment</h2>
-         |<b>Permalink:</b> <tt>sqlContext.read.json("$resultPath")</tt><br/>
+         |<b>Permalink:</b> <tt>sparkSession.read.json("$resultPath")</tt><br/>
          |<b>Iterations complete:</b> ${currentRuns.size / combinations.size} / $iterations<br/>
          |<b>Failures:</b> $failures<br/>
          |<b>Executions run:</b> ${currentResults.size} / ${iterations * combinations.size * executionsToRun.size}

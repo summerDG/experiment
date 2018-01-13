@@ -2,7 +2,7 @@ package org.pasalab.automj.benchmark
 
 import java.io.File
 
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.pasalab.automj.benchmark.ExecutionMode.ForeachResults
 
 import scala.io.Source
@@ -10,7 +10,7 @@ import scala.io.Source
 /**
  * Created by wuxiaoqi on 18-1-5.
  */
-class AutoMjPerformance extends Benchmark {
+class AutoMjPerformance(sparkSession: SparkSession) extends Benchmark(sparkSession) {
 
   val joinTables: Seq[Table] = {
     val tablesFile = currentConfiguration.sparkConf.get(ExperimentConst.TABLES_FILE).getOrElse("")
@@ -24,7 +24,7 @@ class AutoMjPerformance extends Benchmark {
 
     val dfs: Seq[(String, DataFrame)] = names.map {
       case (name, path) =>
-        (name, sqlContext.read.json(path))
+        (name, sparkSession.read.json(path))
     }
     dfs.map {
       case (name, df) =>
@@ -47,7 +47,7 @@ class AutoMjPerformance extends Benchmark {
 
     sqlText.map {
       case (name, sql) =>
-        Query(name = name, sqlText = sql, description = "", executionMode = ForeachResults)
+        Query(sparkSession, name = name, sqlText = sql, description = "", executionMode = ForeachResults)
     }
   }
 }
