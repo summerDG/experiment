@@ -78,7 +78,7 @@ object RunBenchmark {
     }
 
     val sc = SparkContext.getOrCreate(conf)
-    val spark: SparkSession = new MjSession(sc)
+    val spark = new MjSession(sc)
     val sqlContext = spark.sqlContext
     import spark.implicits._
 

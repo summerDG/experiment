@@ -9,7 +9,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{Row, SQLContext, SaveMode, SparkSession}
+import org.apache.spark.sql._
 
 
 /**
@@ -76,7 +76,7 @@ trait DataGenerator extends Serializable {
 }
 
 
-abstract class Tables(sparkSession: SparkSession, scaleFactor: String,
+abstract class Tables(mjSession: MjSession, scaleFactor: String,
                       useDoubleForDecimal: Boolean = false, useStringForDate: Boolean = false)
   extends Serializable {
 
@@ -85,7 +85,7 @@ abstract class Tables(sparkSession: SparkSession, scaleFactor: String,
 
   private val log = LoggerFactory.getLogger(getClass)
 
-  def sparkContext = sparkSession.sparkContext
+  def sparkContext = mjSession.sparkContext
 
   case class Table(name: String, partitionColumns: Seq[String], fields: StructField*) {
     val schema = StructType(fields)
@@ -120,7 +120,7 @@ abstract class Tables(sparkSession: SparkSession, scaleFactor: String,
 
       if (convertToSchema) {
         val stringData =
-          sparkSession.createDataFrame(
+          mjSession.createDataFrame(
             rows,
             StructType(schema.fields.map(f => StructField(f.name, StringType))))
 
@@ -133,7 +133,7 @@ abstract class Tables(sparkSession: SparkSession, scaleFactor: String,
 
         convertedData
       } else {
-        sparkSession.createDataFrame(rows, StructType(Seq(StructField("value", StringType))))
+        mjSession.createDataFrame(rows, StructType(Seq(StructField("value", StringType))))
       }
     }
 
@@ -232,18 +232,18 @@ abstract class Tables(sparkSession: SparkSession, scaleFactor: String,
     def createTemporaryTable(location: String, format: String): Unit = {
       println(s"Creating temporary table $name using data stored in $location.")
       log.info(s"Creating temporary table $name using data stored in $location.")
-      sparkSession.read.format(format).load(location).registerTempTable(name)
+      mjSession.read.format(format).load(location).registerTempTable(name)
     }
 
     def analyzeTable(databaseName: String, analyzeColumns: Boolean = false): Unit = {
       println(s"Analyzing table $name.")
       log.info(s"Analyzing table $name.")
-      sparkSession.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS")
+      mjSession.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS")
       if (analyzeColumns) {
         val allColumns = fields.map(_.name).mkString(", ")
         println(s"Analyzing table $name columns $allColumns.")
         log.info(s"Analyzing table $name columns $allColumns.")
-        sparkSession.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS FOR COLUMNS $allColumns")
+        mjSession.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS FOR COLUMNS $allColumns")
       }
     }
   }

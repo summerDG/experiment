@@ -7,15 +7,15 @@ import java.util.UUID
 
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{SQLContext, SparkSession}
+import org.apache.spark.sql.{MjSession, SQLContext, SparkSession}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 
 
 /** A trait to describe things that can be benchmarked. */
-abstract class Benchmarkable(@transient val sparkSession: SparkSession) extends LazyLogging {
-  @transient protected[this] val sparkContext = sparkSession.sparkContext
+abstract class Benchmarkable(@transient val mjSession: MjSession) extends LazyLogging {
+  @transient protected[this] val sparkContext = mjSession.sparkContext
 
   val name: String
   protected val executionMode: ExecutionMode
@@ -34,7 +34,7 @@ abstract class Benchmarkable(@transient val sparkSession: SparkSession) extends 
     } else {
       doBenchmark(includeBreakdown, description, messages)
     }
-    afterBenchmark(sparkSession.sparkContext)
+    afterBenchmark(mjSession.sparkContext)
     result
   }
 

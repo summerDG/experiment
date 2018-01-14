@@ -3,19 +3,19 @@ package org.pasalab.automj.benchmark
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.implicitConversions
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, MjSession, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.SparkPlan
 
 
 /** Holds one benchmark query and its metadata. */
-class Query(override val sparkSession: SparkSession,
-             override val name: String,
-             buildDataFrame: => DataFrame,
-             val description: String = "",
-             val sqlText: Option[String] = None,
-             override val executionMode: ExecutionMode = ExecutionMode.ForeachResults)
-  extends Benchmarkable(sparkSession) with Serializable {
+class Query(override val mjSession: MjSession,
+            override val name: String,
+            buildDataFrame: => DataFrame,
+            val description: String = "",
+            val sqlText: Option[String] = None,
+            override val executionMode: ExecutionMode = ExecutionMode.ForeachResults)
+  extends Benchmarkable(mjSession) with Serializable {
 
   private implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -146,6 +146,6 @@ class Query(override val sparkSession: SparkSession,
 
   /** Change the ExecutionMode of this Query to HashResults, which is used to check the query result. */
   def checkResult: Query = {
-    new Query(sparkSession, name, buildDataFrame, description, sqlText, ExecutionMode.HashResults)
+    new Query(mjSession, name, buildDataFrame, description, sqlText, ExecutionMode.HashResults)
   }
 }

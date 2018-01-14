@@ -54,9 +54,9 @@ abstract class Benchmark(
 
 
   val executionMode = Variation("Mj execution mode", Seq("default", "one-round", "mixed")) {
-    case "default" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
-    case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
-    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
+    case "default" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "default")
+    case "one-round" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "one-round")
+    case "mixed" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "mixed")
   }
 
   /**
@@ -165,28 +165,28 @@ abstract class Benchmark(
 
   /** Factory object for benchmark queries. */
   case object Query {
-    def apply(sparkSession: SparkSession,
-               name: String,
-               sqlText: String,
-               description: String,
-               executionMode: ExecutionMode = ExecutionMode.ForeachResults): Query = {
-      new Query(sparkSession, name, sparkSession.sql(sqlText), description, Some(sqlText), executionMode)
+    def apply(mjSession: MjSession,
+              name: String,
+              sqlText: String,
+              description: String,
+              executionMode: ExecutionMode = ExecutionMode.ForeachResults): Query = {
+      new Query(mjSession, name, mjSession.sql(sqlText), description, Some(sqlText), executionMode)
     }
 
-    def apply(sparkSession: SparkSession,
-               name: String,
-               dataFrameBuilder: => DataFrame,
-               description: String): Query = {
-      new Query(sparkSession, name, dataFrameBuilder, description, None, ExecutionMode.CollectResults)
+    def apply(mjSession: MjSession,
+              name: String,
+              dataFrameBuilder: => DataFrame,
+              description: String): Query = {
+      new Query(mjSession, name, dataFrameBuilder, description, None, ExecutionMode.CollectResults)
     }
   }
 
   object RDDCount {
-    def apply( sparkSession: SparkSession,
-               name: String,
-               rdd: RDD[_]) = {
+    def apply(mjSession: MjSession,
+              name: String,
+              rdd: RDD[_]) = {
       new SparkPerfExecution(
-        sparkSession,
+        mjSession,
         name,
         Map.empty,
         () => Unit,
@@ -196,13 +196,13 @@ abstract class Benchmark(
   }
 
   /** A class for benchmarking Spark perf results. */
-  class SparkPerfExecution( override val sparkSession: SparkSession,
-                            override val name: String,
-                            parameters: Map[String, String],
-                            prepare: () => Unit,
-                            run: () => Unit,
-                            description: String = "")
-    extends Benchmarkable(sparkSession) {
+  class SparkPerfExecution(override val mjSession: MjSession,
+                           override val name: String,
+                           parameters: Map[String, String],
+                           prepare: () => Unit,
+                           run: () => Unit,
+                           description: String = "")
+    extends Benchmarkable(mjSession) {
 
     override def toString: String =
       s"""
