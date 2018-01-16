@@ -54,9 +54,9 @@ abstract class Benchmark(
 
 
   val executionMode = Variation("Mj execution mode", Seq("default", "one-round", "mixed")) {
-    case "default" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "default")
-    case "one-round" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "one-round")
-    case "mixed" => sparkSession.sparkContext.getConf.set(MjConfigConst.EXECUTION_MODE, "mixed")
+    case "default" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
+    case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
+    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
   }
 
   /**
