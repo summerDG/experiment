@@ -2,8 +2,9 @@ package org.pasalab.automj.benchmark
 
 import java.io.File
 
-import org.apache.spark.sql.{DataFrame, MjSession, SparkSession}
-import org.pasalab.automj.benchmark.ExecutionMode.ForeachResults
+import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, MjSession, Row, SparkSession}
+import org.pasalab.automj.benchmark.ExecutionMode.{CollectResults, ForeachResults}
 
 import scala.io.Source
 
@@ -32,6 +33,17 @@ class AutoMjPerformance(mjSession: MjSession) extends Benchmark(mjSession) {
         df.createOrReplaceTempView(name)
         Table(name, df)
     }
+//    val sc = mjSession.sparkContext
+//    val rdd = sc.parallelize(1 to 100, 4).flatMap(s => (1 to 100).map(t => (s, t))).map {
+//      case x => Row.fromTuple(x)
+//    }
+//    val df1 = mjSession.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("z", IntegerType))))
+//    val df2 = mjSession.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("y", IntegerType))))
+//    val df3 = mjSession.createDataFrame(rdd, StructType(Seq(StructField("y", IntegerType), StructField("z", IntegerType))))
+//    df1.createOrReplaceTempView("a")
+//    df2.createOrReplaceTempView("b")
+//    df3.createOrReplaceTempView("c")
+//    Seq(Table("a", df1),Table("b", df2), Table("c", df3))
   }
 
   val queries: Seq[Benchmarkable] = {

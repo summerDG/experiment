@@ -83,8 +83,10 @@ object RunBenchmark {
     import spark.implicits._
 
     sqlContext.setConf("spark.sql.perf.results", new java.io.File("performance").toURI.toString)
-    sqlContext.setConf("spark.sql.codegen.wholeStage", "false")
-    sqlContext.setConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
+//    sqlContext.setConf("spark.sql.codegen.wholeStage", "false")
+//    sqlContext.setConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1")
+    sqlContext.setConf(MjConfigConst.JOIN_DEFAULT_SIZE, sc.getConf.get(MjConfigConst.JOIN_DEFAULT_SIZE))
+    sqlContext.setConf(MjConfigConst.ONE_ROUND_PARTITIONS, sc.getConf.get(MjConfigConst.ONE_ROUND_PARTITIONS))
 
     val benchmark = Try {
       Class.forName(config.benchmarkName)
@@ -111,7 +113,7 @@ object RunBenchmark {
       variations = Seq(benchmark.executionMode),
       tags = Map(
         "runtype" -> "cluster",
-        "host" -> conf.getOption("spark.master").get))
+        "host" -> conf.getOption("spark.master").get), forkThread = false)
 
     println("== STARTING EXPERIMENT ==")
     experiment.waitForFinish(1000 * 60 * 30)

@@ -6,6 +6,7 @@ import scala.language.implicitConversions
 import org.apache.spark.sql.{DataFrame, MjSession, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.execution.SparkPlan
+import org.pasalab.automj.MjConfigConst
 
 
 /** Holds one benchmark query and its metadata. */
@@ -45,6 +46,47 @@ class Query(override val mjSession: MjSession,
 
   def newDataFrame() = buildDataFrame
 
+  def doBenchmarkWithoutExecution: BenchmarkResult = {
+    try {
+      val dataFrame = buildDataFrame
+      val queryExecution = dataFrame.queryExecution
+      // We are not counting the time of ScalaReflection.convertRowToScala.
+      val parsingTime = measureTimeMs {
+        queryExecution.logical
+      }
+      val tablesInvolved = queryExecution.logical collect {
+        case UnresolvedRelation(tableIdentifier) => {
+          // We are ignoring the database name.
+          tableIdentifier.table
+        }
+      }
+      val analysisTime = measureTimeMs {
+        queryExecution.analyzed
+      }
+      val optimizationTime = measureTimeMs {
+        queryExecution.optimizedPlan
+      }
+      //      val optimizationTime:Double = 10.0
+      //      val planningTime:Double = 10.0
+      val planningTime = measureTimeMs {
+        queryExecution.executedPlan
+      }
+      BenchmarkResult(
+        name = name,
+        mode = executionMode.toString,
+        tables = tablesInvolved,
+        parsingTime = Some(parsingTime),
+        analysisTime = Some(analysisTime),
+        optimizationTime = Some(optimizationTime),planningTime = Some(planningTime),
+        queryExecution = Some(queryExecution.toString()))
+    } catch {
+      case e: Exception =>
+        BenchmarkResult(
+          name = name,
+          mode = executionMode.toString,
+          failure = Some(Failure(e.getClass.getName, e.getMessage)))
+    }
+  }
   protected override def doBenchmark(
                                       includeBreakdown: Boolean,
                                       description: String = "",
@@ -62,6 +104,8 @@ class Query(override val mjSession: MjSession,
       val optimizationTime = measureTimeMs {
         queryExecution.optimizedPlan
       }
+//      val optimizationTime:Double = 10.0
+//      val planningTime:Double = 10.0
       val planningTime = measureTimeMs {
         queryExecution.executedPlan
       }
@@ -103,9 +147,10 @@ class Query(override val mjSession: MjSession,
       // lazily evaluated above, so below we will count only execution time.
       var result: Option[Long] = None
       val executionTime = measureTimeMs {
+        mjSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
         executionMode match {
           case ExecutionMode.CollectResults => dataFrame.collect()
-          case ExecutionMode.ForeachResults => dataFrame.foreach { row => Unit }
+          case ExecutionMode.ForeachResults => dataFrame.queryExecution.toRdd.foreach { row => Unit }
           case ExecutionMode.WriteParquet(location) =>
             dataFrame.write.parquet(s"$location/$name.parquet")
           case ExecutionMode.HashResults =>
@@ -118,9 +163,10 @@ class Query(override val mjSession: MjSession,
         }
       }
 
-      val joinTypes = dataFrame.queryExecution.executedPlan.collect {
-        case k if k.nodeName contains "Join" => k.nodeName
-      }
+//      val joinTypes = dataFrame.queryExecution.executedPlan.collect {
+//        case k if k.nodeName contains "Join" => k.nodeName
+//      }
+      val joinTypes=Seq("Inner", "Inner")
 
       BenchmarkResult(
         name = name,

@@ -52,7 +52,6 @@ abstract class Benchmark(
     defaultParallelism = sparkContext.defaultParallelism,
     buildInfo = buildInfo)
 
-
   val executionMode = Variation("Mj execution mode", Seq("default", "one-round", "mixed")) {
     case "default" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "default")
     case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
@@ -357,21 +356,36 @@ object Benchmark {
 
             currentExecution = q.name
             currentPlan = q match {
-              case query: Query =>
-                try {
-                  query.newDataFrame().queryExecution.executedPlan.toString()
-                } catch {
-                  case e: Exception =>
-                    s"failed to parse: $e"
-                }
+//              case query: Query =>
+//                try {
+//                  query.newDataFrame().queryExecution.executedPlan.toString()
+//                } catch {
+//                  case e: Exception =>
+//                    s"failed to parse: $e"
+//                }
               case _ => ""
             }
             startTime = System.currentTimeMillis()
+            // 每次用过优化之后必须将One-Round-Once重置为true
+//            sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
+//            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
 
-            val singleResultT = Try {
-              q.benchmark(includeBreakdown, setup, currentMessages, timeout,
-                forkThread=forkThread)
+            val singleResultT: Try[BenchmarkResult] = Try {
+              // arbitrary查询在one-round模式下运行不了
+              if (q.name == "arbitrary" && setup.contains("one-round") && q.isInstanceOf[Query]) {
+                q.asInstanceOf[Query].doBenchmarkWithoutExecution
+              } else {
+                q.benchmark(includeBreakdown, setup, currentMessages, timeout,
+                  forkThread=forkThread)
+              }
             }
+//            val singleResultT = Try {
+//              q.benchmark(includeBreakdown, setup, currentMessages, timeout,
+//                forkThread=forkThread)
+//            }
+            // 每次用过优化之后必须将One-Round-Once重置为true
+//            sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
+//            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
 
             singleResultT match {
               case Success(singleResult) =>
@@ -417,6 +431,14 @@ object Benchmark {
       }
 
       logCollection()
+    }
+
+    // 主要是用于测量one-round下的arbitrary的优化时间
+    def measureTimeMs[A](f: => A): Double = {
+      val startTime = System.nanoTime()
+      f
+      val endTime = System.nanoTime()
+      (endTime - startTime).toDouble / 1000000
     }
 
     def scheduleCpuCollection(fs: FS) = {
