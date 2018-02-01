@@ -3,9 +3,10 @@ package org.pasalab.automj.experiment
 import java.io.File
 
 import org.apache.spark.sql.types.{IntegerType, StructField, StructType}
-import org.apache.spark.sql.{MjSession, Row}
+import org.apache.spark.sql.{DataFrame, MjSession, Row}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.MjConfigConst
+import org.pasalab.automj.benchmark.{ExperimentConst, Table}
 
 import scala.io.Source
 
@@ -71,15 +72,33 @@ object RunPerformance {
     sqlContext.setConf(MjConfigConst.JOIN_DEFAULT_SIZE, sc.getConf.get(MjConfigConst.JOIN_DEFAULT_SIZE))
     sqlContext.setConf(MjConfigConst.ONE_ROUND_PARTITIONS, sc.getConf.get(MjConfigConst.ONE_ROUND_PARTITIONS))
 
-    val rdd = sc.parallelize(1 to 100, 4).flatMap(s => (1 to 100).map(t => (s, t))).map {
-      case x => Row.fromTuple(x)
+//    val rdd = sc.parallelize(1 to 100, 4).flatMap(s => (1 to 100).map(t => (s, t))).map {
+//      case x => Row.fromTuple(x)
+//    }
+//    val df1 = spark.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("z", IntegerType))))
+//    val df2 = spark.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("y", IntegerType))))
+//    val df3 = spark.createDataFrame(rdd, StructType(Seq(StructField("y", IntegerType), StructField("z", IntegerType))))
+//    df1.createOrReplaceTempView("a")
+//    df2.createOrReplaceTempView("b")
+//    df3.createOrReplaceTempView("c")
+    val tablesFile = sc.getConf.get(ExperimentConst.TABLES_FILE)
+    assert(new File(tablesFile).exists(), s"file <${tablesFile}> not exist")
+    val names: Seq[(String, String)] = Source.fromFile(tablesFile).getLines().map {
+      case line =>
+        val pair = line.split("\\s+")
+        assert(pair.length == 2, s"please use correct file format($line), <name> <path>")
+        (pair(0), pair(1))
+    }.toSeq
+
+    val dfs: Seq[(String, DataFrame)] = names.map {
+      case (name, path) =>
+        (name, spark.read.json(path))
     }
-    val df1 = spark.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("z", IntegerType))))
-    val df2 = spark.createDataFrame(rdd, StructType(Seq(StructField("x", IntegerType), StructField("y", IntegerType))))
-    val df3 = spark.createDataFrame(rdd, StructType(Seq(StructField("y", IntegerType), StructField("z", IntegerType))))
-    df1.createOrReplaceTempView("a")
-    df2.createOrReplaceTempView("b")
-    df3.createOrReplaceTempView("c")
+    dfs.foreach {
+      case (name, df) =>
+        // 这里必须先注册, 否则后续的sql会找不到表名
+        df.createOrReplaceTempView(name)
+    }
 
     val queriesFile = sc.getConf.get(ExperimentConst.QUERIES_FILE)
     assert(new File(queriesFile).exists(), s"file <${queriesFile}> not exist")
@@ -106,8 +125,13 @@ object RunPerformance {
       case (name:String, sql: String) =>
         spark.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
         println(s"query: ${name}")
-        val time = measureTimeMs(spark.sql(sql).collect())
-        println(s"execution time: $time")
+        if (name == "arbitrary" && mode == "one-round") {
+          val time = measureTimeMs(spark.sql(sql).queryExecution.optimizedPlan)
+          println(s"optimized time: $time")
+        } else {
+          val time = measureTimeMs(spark.sql(sql).queryExecution.toRdd.foreach(_ => Unit))
+          println(s"execution time: $time")
+        }
     }
   }
   def measureTimeMs[A](f: => A): Double = {
