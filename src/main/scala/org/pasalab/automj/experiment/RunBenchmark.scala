@@ -1,11 +1,15 @@
 package org.pasalab.automj.experiment
 
+import java.util
+
 import org.apache.spark.sql.{DataFrame, MjSession, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.MjConfigConst
 import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst}
+import org.pasalab.experiment.automj.{Performance, PerformanceFactory, PerformanceSheet}
+import org.pasalab.experiment.{GenerateSheet, OutputExcelXlsx, OutputSheetXlsx}
 
 import scala.io.Source
 import scala.util.Try
@@ -117,8 +121,8 @@ object RunBenchmark {
 
     println("== STARTING EXPERIMENT ==")
     experiment.waitForFinish(1000 * 60 * 30)
-    def showResult(df: DataFrame): Unit ={
-      df.withColumn("result", explode($"results"))
+    def showResult(df: DataFrame, mode: String): Unit ={
+      val x = df.withColumn("result", explode($"results"))
         .select("result.*")
         .groupBy("name")
         .agg(
@@ -131,19 +135,35 @@ object RunBenchmark {
           avg($"optimizationTime") as 'avgOptTimeMs,
           stddev($"optimizationTime") as 'optStdDev)
         .orderBy("name")
-        .show(truncate = false)
+
+      x.show(truncate = false)
+//      val generateSheet = new GenerateSheet[Performance] {
+//        override def generate(file: String): util.List[OutputSheetXlsx[Performance]] = {
+//          val list = new util.ArrayList[OutputSheetXlsx[Performance]]()
+//          for (i<- 0 to names.size() - 1) {
+//            val name = names.get(i)
+//            list.add(new PerformanceSheet(file, name))
+//          }
+//          list
+//        }
+//      }
+//      val list = new util.ArrayList[Performance]()
+//      x.collect().foreach(r => list.add(PerformanceFactory(10, x.schema, r)))
+//      generateSheet.appendSheet(mode, list)
+//      val output = new OutputExcelXlsx[Performance]("perf-test.xls", generateSheet)
+//      output.output()
     }
 
     sqlContext.setConf("spark.sql.shuffle.partitions", "1")
     println("== Spark Default Strategy ==")
     showResult(experiment.getCurrentRuns()
-      .where($"tags".getItem("Mj execution mode") === "default"))
+      .where($"tags".getItem("Mj execution mode") === "default"), "default")
     println("== One Round Strategy ==")
     showResult(experiment.getCurrentRuns()
-      .where($"tags".getItem("Mj execution mode") === "one-round"))
+      .where($"tags".getItem("Mj execution mode") === "one-round"), "one-round")
     println("== Mixed(one-round & multi-round) Strategy ==")
     showResult(experiment.getCurrentRuns()
-      .where($"tags".getItem("Mj execution mode") === "mixed"))
+      .where($"tags".getItem("Mj execution mode") === "mixed"), "mixed")
 
     println(s"""Results: sqlContext.read.json("${experiment.resultPath}")""")
 

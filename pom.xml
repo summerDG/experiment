@@ -96,6 +96,11 @@
             <artifactId>scopt_${scala.version}</artifactId>
             <version>3.3.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.pasalab.experiment</groupId>
+            <artifactId>outputFormat</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
 
 
 
@@ -377,6 +382,7 @@
                                     <include>com.github.scopt:scopt_${scala.version}</include>
                                     <include>org.slf4j:slf4j-api</include>
                                     <include>com.typesafe.scala-logging:scala-logging-api_${scala.version}</include>
+                                    <include>org.pasalab.experiment:outputFormat</include>
                                 </includes>
                             </artifactSet>
                         </configuration>

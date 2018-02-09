@@ -57,6 +57,10 @@ abstract class Benchmark(
     case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
     case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
   }
+//  val executionMode = Variation("Mj execution mode", Seq("one-round", "mixed")) {
+//    case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
+//    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
+//  }
 
   /**
    * Starts an experiment run with a given set of executions to run.
@@ -370,8 +374,7 @@ object Benchmark {
 //            sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
 //            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
 
-            val singleResultT: Try[BenchmarkResult] = Try {
-              // arbitrary查询在one-round模式下运行不了
+            val singleResultT = Try {
               if (q.name == "arbitrary" && setup.contains("one-round") && q.isInstanceOf[Query]) {
                 q.asInstanceOf[Query].doBenchmarkWithoutExecution
               } else {
@@ -379,13 +382,9 @@ object Benchmark {
                   forkThread=forkThread)
               }
             }
-//            val singleResultT = Try {
-//              q.benchmark(includeBreakdown, setup, currentMessages, timeout,
-//                forkThread=forkThread)
-//            }
             // 每次用过优化之后必须将One-Round-Once重置为true
-//            sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
-//            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
+            sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
+            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
 
             singleResultT match {
               case Success(singleResult) =>
