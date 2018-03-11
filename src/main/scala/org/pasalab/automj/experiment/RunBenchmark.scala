@@ -7,7 +7,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.{SparkConf, SparkContext}
 import org.pasalab.automj.MjConfigConst
-import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst}
+import org.pasalab.automj.benchmark.{Benchmark, ExperimentConst, Query}
 import org.pasalab.experiment.automj.{Performance, PerformanceFactory, PerformanceSheet}
 import org.pasalab.experiment.{GenerateSheet, OutputExcelXlsx, OutputSheetXlsx}
 
@@ -110,6 +110,8 @@ object RunBenchmark {
 
     println("== QUERY LIST ==")
     allQueries.foreach(println)
+
+//    spark.sql(allQueries.head.asInstanceOf[Query].sqlText.get).queryExecution.toRdd.foreach(_ => Unit)
 
     val experiment = benchmark.runExperiment(
       executionsToRun = allQueries,

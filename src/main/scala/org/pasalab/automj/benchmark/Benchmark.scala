@@ -57,6 +57,9 @@ abstract class Benchmark(
     case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
     case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
   }
+  val oneMode = Variation("Mj execution mode", Seq("mixed")) {
+    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
+  }
 //  val executionMode = Variation("Mj execution mode", Seq("one-round", "mixed")) {
 //    case "one-round" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "one-round")
 //    case "mixed" => sparkSession.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, "mixed")
@@ -221,6 +224,12 @@ abstract class Benchmark(
                                         includeBreakdown: Boolean,
                                         description: String = "",
                                         messages: ArrayBuffer[String]): BenchmarkResult = {
+//      val timeMs = measureTimeMs(run())
+//      BenchmarkResult(
+//        name = name,
+//        mode = executionMode.toString,
+//        parameters = parameters,
+//        executionTime = Some(timeMs))
       try {
         val timeMs = measureTimeMs(run())
         BenchmarkResult(
@@ -375,12 +384,14 @@ object Benchmark {
 //            assert(sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)=="true", s"once is ${sparkSession.sqlContext.getConf(MjConfigConst.ONE_ROUND_ONCE)}(1)")
 
             val singleResultT = Try {
-              if (q.name == "arbitrary" && setup.contains("one-round") && q.isInstanceOf[Query]) {
-                q.asInstanceOf[Query].doBenchmarkWithoutExecution
-              } else {
-                q.benchmark(includeBreakdown, setup, currentMessages, timeout,
-                  forkThread=forkThread)
-              }
+              q.benchmark(includeBreakdown, setup, currentMessages, timeout,
+                forkThread=forkThread)
+//              if (q.name.contains("arbitrary") && setup.contains("one-round") && q.isInstanceOf[Query]) {
+//                q.asInstanceOf[Query].doBenchmarkWithoutExecution
+//              } else {
+//                q.benchmark(includeBreakdown, setup, currentMessages, timeout,
+//                  forkThread=forkThread)
+//              }
             }
             // 每次用过优化之后必须将One-Round-Once重置为true
             sparkSession.sqlContext.setConf(MjConfigConst.ONE_ROUND_ONCE, "true")
@@ -390,7 +401,7 @@ object Benchmark {
               case Success(singleResult) =>
                 singleResult.failure.foreach { f =>
                   failures += 1
-                  logMessage(s"Execution '${q.name}' failed: ${f.message}")
+                  logMessage(s"Execution '${q.name}' failed: ${f.className}-${f.message}")
                 }
                 singleResult.executionTime.foreach { time =>
                   logMessage(s"Execution time: ${time / 1000}s")

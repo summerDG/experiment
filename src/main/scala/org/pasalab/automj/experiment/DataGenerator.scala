@@ -60,12 +60,12 @@ object DataGenerator {
               case line =>
                 val pair = line.split("\\s+")
                 valueType match {
-                  case IntegerType => Row(pair.map (_.toInt):_*)
-                  case LongType => Row(pair.map (_.toLong):_*)
-                  case DoubleType => Row(pair.map (_.toDouble):_*)
-                  case FloatType => Row(pair.map (_.toFloat):_*)
+                  case IntegerType => Row(pair.map (_.toInt).sorted:_*)
+                  case LongType => Row(pair.map (_.toLong).sorted:_*)
+                  case DoubleType => Row(pair.map (_.toDouble).sorted:_*)
+                  case FloatType => Row(pair.map (_.toFloat).sorted:_*)
                 }
-            }
+            }.distinct()
           case _ =>
             sc.parallelize(0 to partitions - 1, partitions).flatMap {
               case id =>
