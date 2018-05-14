@@ -114,11 +114,11 @@ object RunPerformance {
     (0 until config.iterations).foreach {
       case i =>
         println(s"============================iteration $i==============================")
-        execute(spark, sqlText, "one-round")
-        execute(spark, sqlText, "mixed")
+//        execute(spark, sqlText, "one-round")
+        execute(spark, sqlText, "mixed-fix")
     }
   }
-  def execute(spark:MjSession, allQueries: Seq[(String, String)], mode: String): Unit ={
+  def execute(spark:MjSession, allQueries: Seq[(String, String)], mode: String): Unit = {
     spark.sqlContext.setConf(MjConfigConst.EXECUTION_MODE, mode)
     println(s"execution mode: $mode")
     allQueries.foreach {

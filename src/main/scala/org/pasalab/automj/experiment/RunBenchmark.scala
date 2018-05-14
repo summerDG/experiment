@@ -20,6 +20,7 @@ case class RunConfig(
                       tablesFile: String = ExperimentConst.DEFAULT_TABLES_FILE,
                       queriesFile: String = ExperimentConst.DEFAULT_QUERIES_FILE,
                       configFile: String = ExperimentConst.DEFAULT_CONFIG_FILE,
+                      mode: String = "hc-fix",
                       iterations: Int = 3,
                       baseline: Option[Long] = None)
 
@@ -46,6 +47,9 @@ object RunBenchmark {
       opt[String]('f', "filter")
         .action((x, c) => c.copy(filter = Some(x)))
         .text("a filter on the name of the queries to run")
+      opt[String]('m', "mode")
+        .action((x, c) => c.copy(mode = x))
+        .text("experiment mode: default-hc-fix|hc-fix|default|conf")
       opt[Int]('i', "iterations")
         .action((x, c) => c.copy(iterations = x))
         .text("the number of iterations to run")
@@ -113,10 +117,16 @@ object RunBenchmark {
 
 //    spark.sql(allQueries.head.asInstanceOf[Query].sqlText.get).queryExecution.toRdd.foreach(_ => Unit)
 
+    val experimentMode = config.mode match {
+      case "default-hc-fix" => benchmark.defaultHcFixMode
+      case "hc-fix" => benchmark.hcFixMode
+      case "default" => benchmark.defaultMode
+      case "conf" => benchmark.confMode
+    }
     val experiment = benchmark.runExperiment(
       executionsToRun = allQueries,
       iterations = config.iterations,
-      variations = Seq(benchmark.executionMode),
+      variations = Seq(experimentMode),
       tags = Map(
         "runtype" -> "cluster",
         "host" -> conf.getOption("spark.master").get), forkThread = false)
@@ -163,9 +173,9 @@ object RunBenchmark {
     println("== One Round Strategy ==")
     showResult(experiment.getCurrentRuns()
       .where($"tags".getItem("Mj execution mode") === "one-round"), "one-round")
-    println("== Mixed(one-round & multi-round) Strategy ==")
+    println("== Mixed-fix(one-round & multi-round) Strategy ==")
     showResult(experiment.getCurrentRuns()
-      .where($"tags".getItem("Mj execution mode") === "mixed"), "mixed")
+      .where($"tags".getItem("Mj execution mode") === "mixed-fix"), "mixed-fix")
 
     println(s"""Results: sqlContext.read.json("${experiment.resultPath}")""")
 
@@ -188,6 +198,8 @@ object RunBenchmark {
         .filter('thisRunTimeMs.isNotNull)
 
       data.show(truncate = false)
+    }
+    while (true) {
     }
   }
 
